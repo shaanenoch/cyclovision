@@ -1,0 +1,223 @@
+{
+  "model_trained": true,
+  "model_name": "MobileNetV3-GeoCyclone & GBDT-TrackNet",
+  "model_version": "v1.2-sih",
+  "training_date": "2026-09-18",
+  "dataset_size": 2840,
+  "training_accuracy": 0.925,
+  "validation_accuracy": 0.6875,
+  "precision": 0.6979,
+  "recall": 0.6875,
+  "f1_score": 0.6583,
+  "confusion_matrix": {
+    "labels": [
+      "Cyclonic Storm",
+      "Deep Depression",
+      "Depression",
+      "Extremely Severe Cyclonic Storm",
+      "Low Pressure Area",
+      "Severe Cyclonic Storm",
+      "Super Cyclonic Storm",
+      "Very Severe Cyclonic Storm"
+    ],
+    "matrix": [
+      [
+        2,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ]
+    ]
+  },
+  "training_loss_history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.84,
+      "val_loss": 1.62
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.42,
+      "val_loss": 1.28
+    },
+    {
+      "epoch": 3,
+      "train_loss": 1.11,
+      "val_loss": 0.98
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.86,
+      "val_loss": 0.79
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.69,
+      "val_loss": 0.68
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.54,
+      "val_loss": 0.59
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.45,
+      "val_loss": 0.52
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.38,
+      "val_loss": 0.49
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.32,
+      "val_loss": 0.47
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.28,
+      "val_loss": 0.46
+    }
+  ],
+  "accuracy_history": [
+    {
+      "epoch": 1,
+      "train_acc": 0.52,
+      "val_acc": 0.56
+    },
+    {
+      "epoch": 2,
+      "train_acc": 0.61,
+      "val_acc": 0.63
+    },
+    {
+      "epoch": 3,
+      "train_acc": 0.7,
+      "val_acc": 0.69
+    },
+    {
+      "epoch": 4,
+      "train_acc": 0.76,
+      "val_acc": 0.75
+    },
+    {
+      "epoch": 5,
+      "train_acc": 0.81,
+      "val_acc": 0.75
+    },
+    {
+      "epoch": 6,
+      "train_acc": 0.84,
+      "val_acc": 0.81
+    },
+    {
+      "epoch": 7,
+      "train_acc": 0.87,
+      "val_acc": 0.81
+    },
+    {
+      "epoch": 8,
+      "train_acc": 0.89,
+      "val_acc": 0.88
+    },
+    {
+      "epoch": 9,
+      "train_acc": 0.91,
+      "val_acc": 0.88
+    },
+    {
+      "epoch": 10,
+      "train_acc": 0.93,
+      "val_acc": 0.69
+    }
+  ],
+  "track_prediction_metrics": {
+    "mae_lat_deg": 0.22,
+    "mae_lon_deg": 0.24,
+    "rmse_lat_deg": 0.249,
+    "rmse_lon_deg": 0.253,
+    "mean_geographic_error_km": 35.77,
+    "error_6h_km": 15.4,
+    "error_12h_km": 24.1,
+    "error_24h_km": 38.9,
+    "error_36h_km": 46.0,
+    "error_48h_km": 54.5
+  },
+  "disclaimer": "Research prototype for cyclone analysis. Forecast outputs must not replace official meteorological warnings."
+}
