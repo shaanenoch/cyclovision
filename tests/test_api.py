@@ -72,3 +72,34 @@ def test_model_metrics():
     assert metrics["track_prediction_metrics"]["test_storms"] > 0
     assert metrics["track_prediction_metrics"]["horizons"]["48"]["mean_error_km"] > 0
     assert metrics["classification_model_trained"] is False
+
+
+def test_analyze_accepts_jpeg_upload():
+    sample_path = "uploads/sat_003c2e05.jpg"
+    with open(sample_path, "rb") as sample:
+        response = client.post(
+            "/api/analyze",
+            files={"file": ("86(2).jpg", sample, "image/jpeg")},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["dataset_label"] == "User Uploaded Satellite Observation"
+    assert data["original_image_url"].endswith(".png")
+
+
+def test_analyze_rejects_empty_upload():
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("empty.jpg", b"", "image/jpeg")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "The uploaded file is empty."
+
+
+def test_analyze_rejects_invalid_image_contents():
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("not-an-image.jpg", b"not really a jpeg", "image/jpeg")},
+    )
+    assert response.status_code == 422
+    assert "not a readable JPG" in response.json()["detail"]

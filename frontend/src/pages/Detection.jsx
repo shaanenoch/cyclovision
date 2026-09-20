@@ -21,6 +21,21 @@ export default function Detection() {
     "Creating AI heatmap..."
   ];
 
+  const getUploadError = (err) => {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg || String(item)).join(', ');
+    }
+    if (err.code === 'ECONNABORTED') {
+      return 'Analysis timed out. Try a smaller image or check the FastAPI terminal.';
+    }
+    if (!err.response) {
+      return 'Cannot reach the FastAPI backend. Start it on port 8000, then try again.';
+    }
+    return 'Cyclone analysis failed. Check the FastAPI terminal for details.';
+  };
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const f = e.target.files[0];
@@ -57,7 +72,7 @@ export default function Detection() {
       setResult(data);
     } catch (err) {
       clearInterval(interval);
-      setError(err.response?.data?.detail || "Unable to read this satellite file. Please upload JPG, PNG, TIFF or NetCDF data.");
+      setError(getUploadError(err));
     } finally {
       setLoading(false);
     }
