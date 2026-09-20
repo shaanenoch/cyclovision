@@ -19,19 +19,13 @@ export const api = {
 
   // Analysis & Prediction
   analyzeCyclone: (formData) => 
-    apiClient.post('/api/analyze', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }).then(res => res.data),
+    apiClient.post('/api/analyze', formData).then(res => res.data),
 
   detectCyclone: (formData) => 
-    apiClient.post('/api/detect', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }).then(res => res.data),
+    apiClient.post('/api/detect', formData).then(res => res.data),
 
   classifyCyclone: (formData) => 
-    apiClient.post('/api/classify', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }).then(res => res.data),
+    apiClient.post('/api/classify', formData).then(res => res.data),
 
   predictTrack: (payload) => apiClient.post('/api/predict-track', payload).then(res => res.data),
   predictIntensity: (wind, pres) => 
@@ -39,9 +33,7 @@ export const api = {
 
   // Datasets
   uploadDataset: (formData) =>
-    apiClient.post('/api/datasets/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }).then(res => res.data),
+    apiClient.post('/api/datasets/upload', formData).then(res => res.data),
   
   getDatasets: () => apiClient.get('/api/datasets').then(res => res.data),
   analyzeDataset: (id) => apiClient.post(`/api/datasets/${id}/analyze`).then(res => res.data),
