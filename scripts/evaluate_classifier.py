@@ -17,9 +17,10 @@ def main():
     evaluator = ModelEvaluator()
     metrics = evaluator.run_evaluation()
     
-    print(f"Model Name:           {metrics['model_name']}")
-    print(f"Model Version:        {metrics['model_version']}")
-    print(f"Dataset Size:         {metrics['dataset_size']} observations")
+    if not metrics["classification_model_trained"]:
+        print(metrics["classification_status"])
+        print("Run scripts/train_classifier.py with cyclone-wise train/val image folders.")
+        return
     print(f"Training Accuracy:    {metrics['training_accuracy'] * 100:.2f}%")
     print(f"Validation Accuracy:  {metrics['validation_accuracy'] * 100:.2f}%")
     print(f"Weighted Precision:   {metrics['precision']:.4f}")

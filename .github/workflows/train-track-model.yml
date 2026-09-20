@@ -1,0 +1,53 @@
+name: Train IBTrACS Track Model
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/train_track_model.py"
+      - "preprocessing/track_preprocessing.py"
+      - ".github/workflows/train-track-model.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install training dependencies
+        run: pip install joblib numpy pandas scikit-learn
+
+      - name: Download NOAA IBTrACS North Indian Ocean data
+        run: |
+          mkdir -p data/tracks
+          curl --fail --location --retry 3 \
+            --output data/tracks/ibtracs.NI.list.v04r01.csv \
+            https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.NI.list.v04r01.csv
+
+      - name: Train and evaluate model
+        run: |
+          python scripts/train_track_model.py \
+            --data data/tracks/ibtracs.NI.list.v04r01.csv \
+            --output models/prediction/track_predictor_v2.joblib
+
+      - name: Publish trained model and metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclovision-ibtracs-model
+          path: |
+            models/prediction/track_predictor_v2.joblib
+            data/demo/track_metrics.json
+          if-no-files-found: error
+          retention-days: 30

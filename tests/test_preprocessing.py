@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from preprocessing.track_preprocessing import validate_coordinates, calculate_haversine_distance_km, calculate_bearing_deg, bearing_to_compass
 from preprocessing.image_preprocessing import apply_clahe_contrast, resize_and_normalize, estimate_vortex_center
+from preprocessing.netcdf_preprocessing import parse_netcdf_file
 
 def test_validate_coordinates():
     assert validate_coordinates(15.2, 84.7) is True
@@ -39,3 +40,20 @@ def test_image_preprocessing():
     assert "pixel_x" in vortex
     assert "pixel_y" in vortex
     assert "bounding_box" in vortex
+
+def test_real_netcdf_channel_extraction(tmp_path):
+    from netCDF4 import Dataset
+    path = tmp_path / "sample.nc"
+    with Dataset(path, "w") as dataset:
+        dataset.createDimension("lat", 8)
+        dataset.createDimension("lon", 10)
+        lat = dataset.createVariable("lat", "f4", ("lat",))
+        lon = dataset.createVariable("lon", "f4", ("lon",))
+        channel = dataset.createVariable("brightness_temp", "f4", ("lat", "lon"))
+        lat[:] = np.linspace(10, 20, 8)
+        lon[:] = np.linspace(80, 90, 10)
+        channel[:] = np.arange(80, dtype=np.float32).reshape(8, 10)
+    parsed = parse_netcdf_file(str(path))
+    assert parsed["selected_variable"] == "brightness_temp"
+    assert parsed["extracted_image_rgb"].shape == (8, 10, 3)
+    assert parsed["bounds"]["min_lat"] == pytest.approx(10.0)

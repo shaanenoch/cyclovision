@@ -12,12 +12,13 @@ from ml.classification.classifier import CycloneClassifier
 from ml.explainability.gradcam import GradCamExplainer
 from ml.prediction.track_predictor import TrackPredictor
 from preprocessing.image_preprocessing import load_image_to_numpy
+from preprocessing.netcdf_preprocessing import parse_netcdf_file
 
 router = APIRouter()
 
 detector = CycloneDetector()
 classifier = CycloneClassifier()
-explainer = GradCamExplainer()
+explainer = GradCamExplainer(classifier.model)
 predictor = TrackPredictor()
 
 @router.post("/detect")
@@ -90,7 +91,7 @@ def predict_track_endpoint(payload: TrackPredictionRequest):
             "longitude": payload.current_lon
         },
         "forecast": forecast_points,
-        "model_name": "Physical Inertia & Recurvature Dynamic Predictor",
+        "model_name": predictor.model_name,
         "disclaimer": DISCLAIMER_TEXT
     }
 
@@ -152,6 +153,23 @@ async def analyze_full_pipeline(
         original_img_url = f"/uploads/{save_name}"
         is_demo_used = False
         dataset_label = "User Uploaded Satellite Observation"
+
+        # Convert the selected radiance/brightness-temperature channel to a
+        # display/model array before passing a NetCDF file into vision code.
+        if file_ext == '.nc':
+            nc_info = parse_netcdf_file(target_path)
+            extracted = nc_info.get("extracted_image_rgb")
+            if extracted is None:
+                raise HTTPException(status_code=422, detail="No usable 2D satellite channel found in NetCDF file.")
+            converted_name = f"sat_{uuid.uuid4().hex[:8]}_netcdf.png"
+            converted_path = UPLOADS_DIR / converted_name
+            Image.fromarray(extracted).save(converted_path)
+            target_path = str(converted_path)
+            original_img_url = f"/uploads/{converted_name}"
+            dataset_label = f"NetCDF: {nc_info.get('selected_variable', 'satellite channel')}"
+            metadata_bounds = nc_info.get("bounds")
+        else:
+            metadata_bounds = None
     else:
         # Load demo satellite image
         target_path = str(DEMO_DATA_DIR / "demo_satellite_ir.png")
@@ -160,7 +178,7 @@ async def analyze_full_pipeline(
         dataset_label = "Demonstration Dataset (Demo Cyclone 01)"
 
     # 1. Detection & Eye Location
-    metadata_bounds = None
+    metadata_bounds = locals().get("metadata_bounds")
     if latitude is not None and longitude is not None:
         metadata_bounds = {
             "min_lat": latitude - 4.0,
@@ -206,10 +224,13 @@ async def analyze_full_pipeline(
         "forecast": forecast_points,
         "heatmap_url": heat_res["heatmap_url"],
         "original_image_url": original_img_url,
-        "model_version": "CycloneAI-v1.0 (MobileNetV3 + GBDT)",
+        "model_version": (
+            f"Classifier: {cls['model_mode']} | Track: "
+            f"{predictor.metadata.get('model_version', 'physical-fallback')}"
+        ),
         "is_demo": is_demo_used,
         "dataset_label": dataset_label,
         "disclaimer": DISCLAIMER_TEXT,
-        "explainability_caption": EXPLAINABILITY_CAPTION,
+        "explainability_caption": heat_res["caption"],
         "execution_time_ms": t_elapsed
     }

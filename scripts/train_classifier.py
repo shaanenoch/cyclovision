@@ -1,86 +1,127 @@
+"""Train MobileNetV3 on explicitly separated satellite train/validation data.
+
+Expected layout:
+  DATA/train/<IMD class name>/*.png
+  DATA/val/<IMD class name>/*.png
+
+Keep every cyclone in only one split. The script refuses to create a random
+image split because adjacent frames from one storm would leak information.
 """
-CycloneAI - Classifier Training Script
-Trains / fine-tunes a lightweight PyTorch vision model (MobileNetV3) on satellite imagery.
-Saves model weights to models/classification/cyclone_classifier_v1.pt
-"""
-import os
+from __future__ import annotations
+
+import argparse
+import copy
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-# Add project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from backend.config import MODELS_DIR, CYCLONE_CATEGORIES
-from ml.evaluation.evaluator import ModelEvaluator
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+from torchvision.models import MobileNet_V3_Small_Weights, mobilenet_v3_small
 
-def build_cyclone_model(num_classes: int = 8):
-    try:
-        from torchvision.models import mobilenet_v3_small, MobileNet_V3_Small_Weights
-        model = mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
-        in_features = model.classifier[3].in_features
-        model.classifier[3] = nn.Linear(in_features, num_classes)
-        return model
-    except Exception as e:
-        print(f"Using lightweight custom CNN backbone: {e}")
-        return nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.Linear(64, num_classes)
-        )
+from backend.config import MODELS_DIR
+
+
+def loaders(root: Path, batch_size: int):
+    train_dir, val_dir = root / "train", root / "val"
+    if not train_dir.is_dir() or not val_dir.is_dir():
+        raise SystemExit("Dataset must contain separate train/ and val/ class folders")
+    weights = MobileNet_V3_Small_Weights.DEFAULT
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        transforms.RandomHorizontalFlip(), transforms.RandomRotation(12),
+        transforms.ColorJitter(brightness=0.15, contrast=0.15),
+        transforms.ToTensor(), transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    val_transform = weights.transforms()
+    train_set = datasets.ImageFolder(train_dir, train_transform)
+    val_set = datasets.ImageFolder(val_dir, val_transform)
+    if train_set.classes != val_set.classes:
+        raise SystemExit("train/ and val/ must contain the same class folders")
+    return (
+        DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2),
+        DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=2),
+        train_set.classes,
+    )
+
+
+def evaluate(model, loader, device):
+    model.eval(); labels, predictions, losses = [], [], []
+    criterion = nn.CrossEntropyLoss()
+    with torch.inference_mode():
+        for images, target in loader:
+            images, target = images.to(device), target.to(device)
+            logits = model(images)
+            losses.append(float(criterion(logits, target)))
+            labels.extend(target.cpu().tolist())
+            predictions.extend(logits.argmax(dim=1).cpu().tolist())
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, predictions, average="weighted", zero_division=0
+    )
+    return {
+        "loss": float(np.mean(losses)), "accuracy": float(accuracy_score(labels, predictions)),
+        "precision": float(precision), "recall": float(recall), "f1": float(f1),
+        "labels": labels, "predictions": predictions,
+    }
+
 
 def main():
-    print("=" * 60)
-    print("CycloneAI: Satellite Cyclone Classifier Training Pipeline")
-    print("=" * 60)
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--epochs", type=int, default=15)
+    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--output", type=Path, default=MODELS_DIR / "classification" / "cyclone_classifier_v2.pt")
+    args = parser.parse_args()
+    train_loader, val_loader, class_names = loaders(args.data, args.batch_size)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Training Device: {device}")
-    
-    num_classes = len(CYCLONE_CATEGORIES)
-    model = build_cyclone_model(num_classes).to(device)
-    
+    model = mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
+    model.classifier[3] = nn.Linear(model.classifier[3].in_features, len(class_names))
+    model.to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    
-    print(f"Classes: {[c['name'] for c in CYCLONE_CATEGORIES]}")
-    print("Simulating 5 training epochs over curated satellite dataset...")
-    
-    # Synthetic batch to demonstrate forward and backward pass
-    dummy_input = torch.randn(8, 3, 224, 224, device=device)
-    dummy_targets = torch.tensor([1, 3, 4, 4, 5, 2, 0, 6], device=device)
-    
-    model.train()
-    for epoch in range(1, 6):
-        optimizer.zero_grad()
-        outputs = model(dummy_input)
-        loss = criterion(outputs, dummy_targets)
-        loss.backward()
-        optimizer.step()
-        print(f"Epoch [{epoch}/5] - Loss: {loss.item():.4f} - Accuracy: {0.70 + epoch * 0.045:.3f}")
-        
-    save_dir = MODELS_DIR / "classification"
-    save_dir.mkdir(parents=True, exist_ok=True)
-    save_path = save_dir / "cyclone_classifier_v1.pt"
-    torch.save(model.state_dict(), save_path)
-    print(f"\nModel checkpoint saved successfully to: {save_path}")
-    
-    # Run evaluation
-    print("\nExecuting validation evaluation...")
-    evaluator = ModelEvaluator()
-    metrics = evaluator.run_evaluation()
-    print(f"Validation Accuracy: {metrics['validation_accuracy'] * 100:.2f}%")
-    print(f"F1-Score: {metrics['f1_score']:.4f}")
-    print("=" * 60)
+    best_state, best_accuracy, loss_history, accuracy_history = None, -1.0, [], []
+
+    for epoch in range(1, args.epochs + 1):
+        model.train(); train_losses, correct, count = [], 0, 0
+        for images, target in train_loader:
+            images, target = images.to(device), target.to(device)
+            optimizer.zero_grad(set_to_none=True)
+            logits = model(images); loss = criterion(logits, target)
+            loss.backward(); optimizer.step()
+            train_losses.append(float(loss)); correct += int((logits.argmax(1) == target).sum()); count += len(target)
+        validation = evaluate(model, val_loader, device)
+        train_loss, train_accuracy = float(np.mean(train_losses)), correct / count
+        loss_history.append({"epoch": epoch, "train_loss": train_loss, "val_loss": validation["loss"]})
+        accuracy_history.append({"epoch": epoch, "train_acc": train_accuracy, "val_acc": validation["accuracy"]})
+        if validation["accuracy"] > best_accuracy:
+            best_accuracy, best_state = validation["accuracy"], copy.deepcopy(model.state_dict())
+        print(f"Epoch {epoch}/{args.epochs}: train={train_accuracy:.3f}, val={validation['accuracy']:.3f}")
+
+    model.load_state_dict(best_state)
+    validation = evaluate(model, val_loader, device)
+    matrix = confusion_matrix(validation["labels"], validation["predictions"], labels=list(range(len(class_names))))
+    metadata = {
+        "model_name": "MobileNetV3 Satellite Intensity Classifier", "model_version": "classifier-v2.0",
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "training_samples": len(train_loader.dataset), "validation_samples": len(val_loader.dataset),
+        "split_method": "pre-separated cyclone-wise train/val directories",
+        "training_accuracy": accuracy_history[-1]["train_acc"],
+        "validation_accuracy": validation["accuracy"], "precision": validation["precision"],
+        "recall": validation["recall"], "f1_score": validation["f1"],
+        "confusion_matrix": {"labels": class_names, "matrix": matrix.tolist()},
+        "training_loss_history": loss_history, "accuracy_history": accuracy_history,
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"state_dict": best_state, "class_names": class_names, "metadata": metadata}, args.output)
+    print(f"Saved verified checkpoint to {args.output}")
+
 
 if __name__ == "__main__":
     main()

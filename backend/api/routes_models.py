@@ -16,11 +16,12 @@ def get_model_evaluation_metrics():
 @router.post("/model/train")
 def trigger_model_training():
     """
-    Re-trains/re-evaluates models and updates evaluation metrics records.
+    Refreshes metrics from the latest trained artifacts. Training itself is a
+    CLI/offline job because it can take minutes and must use an explicit dataset.
     """
     updated_metrics = evaluator.run_evaluation()
     return {
         "status": "success",
-        "message": "Model training & validation evaluation completed.",
+        "message": "Metrics refreshed from the latest trained model artifacts.",
         "metrics": updated_metrics
     }

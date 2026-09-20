@@ -76,7 +76,9 @@ export default function ForecastTable({ forecastPoints = [], onSelectPoint }) {
                   </td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-0.5 rounded bg-navy-950 text-slate-400 border border-navy-800 text-[10px]">
-                      {pt.confidence_label || 'model estimate'}
+                      {pt.uncertainty_km != null
+                        ? `67% radius: ±${Math.round(pt.uncertainty_km)} km`
+                        : (pt.confidence_label || 'model estimate')}
                     </span>
                   </td>
                 </tr>

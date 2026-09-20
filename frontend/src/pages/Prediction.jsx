@@ -66,7 +66,7 @@ export default function Prediction() {
           Numerical Track & Intensity Simulator
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 font-sans mt-1">
-          Simulate 48-hour forward cyclone trajectories based on Coriolis recurvature dynamics, historical synoptic inertia, and beta drift.
+          Generate 48-hour forecasts using a model trained on NOAA IBTrACS North Indian Ocean tracks, with validation-derived uncertainty radii.
         </p>
       </div>
 

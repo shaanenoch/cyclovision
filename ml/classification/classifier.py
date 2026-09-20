@@ -1,72 +1,106 @@
-import numpy as np
-import cv2
-from typing import Dict, Any, Optional
+from __future__ import annotations
+
 from pathlib import Path
-from backend.config import CYCLONE_CATEGORIES, get_category_from_wind
-from preprocessing.image_preprocessing import load_image_to_numpy, enhance_cloud_patterns
+from typing import Any, Dict, Optional
+
+import cv2
+import numpy as np
+
+from backend.config import CYCLONE_CATEGORIES, MODELS_DIR, get_category_from_wind
+from preprocessing.image_preprocessing import load_image_to_numpy, resize_and_normalize
+
+
+def build_mobilenet(num_classes: int):
+    """Create the exact architecture used by the training script."""
+    import torch.nn as nn
+    from torchvision.models import mobilenet_v3_small
+
+    model = mobilenet_v3_small(weights=None)
+    model.classifier[3] = nn.Linear(model.classifier[3].in_features, num_classes)
+    return model
+
 
 class CycloneClassifier:
     def __init__(self, model_weights_path: Optional[str] = None):
-        self.model_weights_path = model_weights_path
+        default = MODELS_DIR / "classification" / "cyclone_classifier_v2.pt"
+        self.model_weights_path = Path(model_weights_path) if model_weights_path else default
         self.categories = CYCLONE_CATEGORIES
         self.model = None
+        self.class_names = [item["name"] for item in self.categories]
+        self.metadata: Dict[str, Any] = {}
         self._load_weights()
 
+    @property
+    def is_model_loaded(self) -> bool:
+        return self.model is not None
+
     def _load_weights(self):
+        if not self.model_weights_path.exists():
+            return
         try:
             import torch
-            if self.model_weights_path and Path(self.model_weights_path).exists():
-                self.model = torch.load(self.model_weights_path, map_location='cpu')
-                self.model.eval()
-        except Exception:
+            checkpoint = torch.load(self.model_weights_path, map_location="cpu", weights_only=False)
+            self.class_names = checkpoint["class_names"]
+            self.model = build_mobilenet(len(self.class_names))
+            self.model.load_state_dict(checkpoint["state_dict"])
+            self.model.eval()
+            self.metadata = checkpoint.get("metadata", {})
+        except Exception as exc:
             self.model = None
+            self.metadata = {"load_error": str(exc)}
+
+    def _neural_classification(self, image_source):
+        import torch
+        image = load_image_to_numpy(image_source)
+        _, normalized = resize_and_normalize(image, (224, 224))
+        tensor = torch.from_numpy(normalized).unsqueeze(0).float()
+        with torch.inference_mode():
+            probabilities = torch.softmax(self.model(tensor), dim=1)[0].cpu().numpy()
+        class_index = int(np.argmax(probabilities))
+        class_name = self.class_names[class_index]
+        cat_info = next(
+            (item for item in self.categories if item["name"] == class_name),
+            self.categories[0],
+        )
+        expected_wind = sum(
+            probability * (
+                (item["min_wind_kmph"] + min(item["max_wind_kmph"], 260)) / 2.0
+            )
+            for probability, item in zip(probabilities, self.categories)
+        )
+        return cat_info, float(probabilities[class_index]), float(expected_wind), probabilities
+
+    def _heuristic_classification(self, image_source, detection_confidence):
+        image = load_image_to_numpy(image_source)
+        h, w, _ = image.shape
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        center = gray[h // 4: 3 * h // 4, w // 4: 3 * w // 4]
+        min_value, max_value, _, _ = cv2.minMaxLoc(center)
+        convection = float(np.mean(center > 180))
+        wind = (45.0 + convection * 90.0 + (max_value - min_value) * 0.35)
+        wind *= 0.8 + 0.3 * detection_confidence
+        wind = float(np.clip(wind, 35.0, 240.0))
+        return get_category_from_wind(wind), float(np.clip(0.55 + convection * 0.2, 0.55, 0.78)), wind, None
 
     def classify_image(self, image_source, detection_confidence: float = 0.88) -> Dict[str, Any]:
-        """
-        Classifies tropical cyclone intensity into standard IMD categories based on:
-        - Eyewall definition and temperature contrast
-        - Central Dense Overcast (CDO) diameter
-        - Spiral band curvature (Dvorak technique heuristic)
-        """
-        img_rgb = load_image_to_numpy(image_source)
-        h, w, _ = img_rgb.shape
-        
-        gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-        
-        # In infrared imagery, brightness is proportional to cold convective cloud tops
-        # Eye temperature and eyewall cloud top temperature delta:
-        center_region = gray[h//4: 3*h//4, w//4: 3*w//4]
-        min_val, max_val, _, _ = cv2.minMaxLoc(center_region)
-        temperature_contrast = max_val - min_val
-        
-        # High convective area fraction
-        intense_convection_ratio = float(np.mean(center_region > 180))
-        
-        # Estimate wind speed based on convective mass density and contrast
-        # Typical IMD wind scale: 30 km/h (Depression) up to 220+ km/h (Super Cyclone)
-        estimated_wind_kmph = 45.0 + (intense_convection_ratio * 90.0) + (temperature_contrast * 0.35)
-        # Add slight sensitivity to detection confidence
-        estimated_wind_kmph *= (0.8 + 0.3 * detection_confidence)
-        estimated_wind_kmph = float(np.clip(round(estimated_wind_kmph, 1), 35.0, 240.0))
-        
-        # Estimate central pressure using Atkinson & Holliday relationship:
-        # P_c = 1010 - (V_max / 3.4)**(1/0.75) approximately
-        # Typical values: 1000 hPa down to 910 hPa
-        estimated_pressure_hpa = float(np.clip(round(1012.0 - (estimated_wind_kmph * 0.42), 1), 915.0, 1005.0))
-        
-        # Category lookup
-        cat_info = get_category_from_wind(estimated_wind_kmph)
-        
-        # Confidence in classification (bounded realistically between 0.76 and 0.94)
-        classification_confidence = float(np.clip(round(0.72 + (intense_convection_ratio * 0.22), 2), 0.74, 0.93))
-        
+        if self.is_model_loaded:
+            category, confidence, wind, probabilities = self._neural_classification(image_source)
+            mode = "trained"
+        else:
+            category, confidence, wind, probabilities = self._heuristic_classification(
+                image_source, detection_confidence
+            )
+            mode = "heuristic_fallback"
+        pressure = float(np.clip(1012.0 - wind * 0.42, 900.0, 1010.0))
         return {
-            "classification": cat_info["name"],
-            "short_code": cat_info["short"],
-            "confidence": classification_confidence,
-            "estimated_wind_speed_kmph": estimated_wind_kmph,
-            "estimated_pressure_hpa": estimated_pressure_hpa,
-            "severity": cat_info["severity"],
-            "color": cat_info["color"],
-            "dvorak_estimate_t_num": round(min(8.0, max(1.5, (estimated_wind_kmph / 30.0))), 1)
+            "classification": category["name"], "short_code": category["short"],
+            "confidence": round(confidence, 4),
+            "estimated_wind_speed_kmph": round(wind, 1),
+            "estimated_pressure_hpa": round(pressure, 1),
+            "severity": category["severity"], "color": category["color"],
+            "model_mode": mode,
+            "class_probabilities": (
+                {name: round(float(value), 4) for name, value in zip(self.class_names, probabilities)}
+                if probabilities is not None else None
+            ),
         }

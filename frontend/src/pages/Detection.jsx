@@ -71,7 +71,7 @@ export default function Detection() {
           AI Cyclone Detection & Eyewall Classification
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 font-sans mt-1">
-          Upload multi-spectral satellite imagery to detect tropical cyclone presence, localize the center of circulation, and generate neural explainability heatmaps.
+          Upload satellite imagery or NetCDF data to localize cyclone structure. The interface distinguishes trained neural output from computer-vision fallback output.
         </p>
       </div>
 
@@ -198,7 +198,8 @@ export default function Detection() {
 
             <HeatmapViewer
               heatmapUrl={result.heatmap_url}
-              method="Grad-CAM Deep Attention"
+              method={result.explainability_caption?.startsWith('Grad-CAM') ? 'Grad-CAM' : 'Saliency fallback'}
+              caption={result.explainability_caption}
             />
           </div>
         </div>

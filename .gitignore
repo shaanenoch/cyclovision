@@ -10,3 +10,7 @@ venv/
 .pytest_cache/
 .vscode/
 *.log
+data/raw/*.csv
+uploads/sat_*
+uploads/heat_*
+models/**/*.joblib

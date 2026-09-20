@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Layers, Eye, Compass, ShieldAlert, Crosshair } from 'lucide-react';
 
@@ -182,6 +182,16 @@ export default function CycloneMap({ cyclone, selectedPoint, onPointClick }) {
           />
         )}
 
+        {/* Validation-derived 67% uncertainty radii for trained forecasts */}
+        {forecastPoints.filter(pt => pt.uncertainty_km).map((pt, idx) => (
+          <Circle
+            key={`uncertainty-${idx}`}
+            center={[pt.latitude, pt.longitude]}
+            radius={pt.uncertainty_km * 1000}
+            pathOptions={{ color: '#f97316', weight: 1, fillOpacity: 0.06, opacity: 0.35 }}
+          />
+        ))}
+
         {/* Historical Observation Markers */}
         {historicalPoints.map((pt, idx) => (
           <Marker
@@ -243,8 +253,9 @@ export default function CycloneMap({ cyclone, selectedPoint, onPointClick }) {
                 <div>Coordinates: <strong>{pt.latitude}°N, {pt.longitude}°E</strong></div>
                 <div>Projected Wind: <strong>{pt.wind_speed_kmph} km/h</strong></div>
                 <div>Central Pressure: <strong>{pt.pressure_hpa} hPa</strong></div>
+                {pt.uncertainty_km != null && <div>67% uncertainty radius: <strong>±{Math.round(pt.uncertainty_km)} km</strong></div>}
                 <div className="text-[10px] text-slate-400 italic pt-1 border-t border-navy-800">
-                  Confidence Label: model estimate
+                  {pt.confidence_label || 'model estimate'}
                 </div>
               </div>
             </Popup>
