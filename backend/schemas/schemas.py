@@ -22,6 +22,8 @@ class ForecastPoint(BaseModel):
     classification: str
     category_color: str
     confidence_label: str = "model estimate"
+    uncertainty_km: Optional[float] = None
+    model_mode: str = "fallback"
 
 class TrackPredictionRequest(BaseModel):
     cyclone_name: Optional[str] = "Cyclone Target"

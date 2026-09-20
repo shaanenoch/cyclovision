@@ -48,14 +48,20 @@ def parse_netcdf_file(filepath: str) -> Dict[str, Any]:
                         break
             
             if target_var:
-                raw_arr = ds.variables[target_var][:]
-                if len(raw_arr.shape) == 3:
-                    raw_arr = raw_arr[0]
-                arr = np.nan_to_num(np.array(raw_arr), nan=200.0)
+                raw_arr = np.ma.filled(ds.variables[target_var][:], np.nan)
+                arr = np.asarray(raw_arr, dtype=np.float32).squeeze()
+                while arr.ndim > 2:
+                    arr = arr[0]
+                if arr.ndim != 2:
+                    raise ValueError(f"Selected variable {target_var} is not a 2D satellite grid")
+                finite = arr[np.isfinite(arr)]
+                if finite.size == 0:
+                    raise ValueError(f"Selected variable {target_var} contains no finite values")
+                arr = np.nan_to_num(arr, nan=float(np.median(finite)))
                 # Normalize to 0-255
                 norm = ((arr - np.min(arr)) / (np.max(arr) - np.min(arr) + 1e-6) * 255).astype(np.uint8)
-                rgb = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
-                metadata["extracted_image"] = rgb
+                bgr = cv2.applyColorMap(norm, cv2.COLORMAP_TURBO)
+                metadata["extracted_image_rgb"] = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
                 metadata["selected_variable"] = target_var
 
             # Extract lat / lon if available
@@ -76,19 +82,7 @@ def parse_netcdf_file(filepath: str) -> Dict[str, Any]:
 
             return metadata
 
-    except ImportError:
-        # If netCDF4 is not installed in the environment, read header or provide structured fallback
-        metadata["note"] = "netCDF4 package not installed; metadata parsed via raw reader fallback."
-        # Generate synthetic satellite visualization grid
-        grid = np.zeros((256, 256), dtype=np.uint8)
-        cv2.circle(grid, (128, 128), 70, 200, -1)
-        cv2.circle(grid, (128, 128), 15, 20, -1)
-        rgb = cv2.applyColorMap(grid, cv2.COLORMAP_INFERNO)
-        metadata["extracted_image"] = rgb
-        metadata["variables"] = ["lat", "lon", "brightness_temperature_ch1"]
-        metadata["dimensions"] = {"lat": 256, "lon": 256}
-        metadata["bounds"] = {"min_lat": 10.0, "max_lat": 22.0, "min_lon": 80.0, "max_lon": 92.0}
-        metadata["has_spatial_grid"] = True
-        return metadata
+    except ImportError as exc:
+        raise RuntimeError("NetCDF support requires the netCDF4 package") from exc
     except Exception as e:
         raise RuntimeError(f"Error parsing NetCDF file: {str(e)}")

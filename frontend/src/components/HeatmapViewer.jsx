@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sparkles, HelpCircle, Eye, Info } from 'lucide-react';
 
-export default function HeatmapViewer({ heatmapUrl, method = 'Grad-CAM' }) {
+export default function HeatmapViewer({ heatmapUrl, method = 'Cloud-pattern saliency', caption }) {
   return (
     <div className="rounded-2xl bg-navy-900/80 border border-navy-750 p-4 shadow-xl backdrop-blur-md flex flex-col justify-between">
       <div>
@@ -15,7 +15,7 @@ export default function HeatmapViewer({ heatmapUrl, method = 'Grad-CAM' }) {
             <div className="relative group/tooltip">
               <HelpCircle className="w-3.5 h-3.5 text-slate-400 hover:text-cyan-300 cursor-help" />
               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/tooltip:block w-56 p-2 rounded-lg bg-navy-950 border border-navy-750 text-[11px] font-normal text-slate-200 shadow-2xl z-50 text-center">
-                Highlights image regions that influenced the AI's decision.
+                Highlights image regions used by the active analysis method.
                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-navy-950" />
               </div>
             </div>
@@ -46,10 +46,10 @@ export default function HeatmapViewer({ heatmapUrl, method = 'Grad-CAM' }) {
       {/* Mandatory Required Explainability Caption */}
       <div className="mt-3 pt-2.5 border-t border-navy-800/80 space-y-1.5">
         <p className="text-xs text-cyan-300/90 font-medium leading-relaxed">
-          AI Attention Region — areas highlighted by the model as important for cyclone identification.
+          {caption || 'Highlighted regions indicate cloud structures used by the active analysis method.'}
         </p>
         <p className="text-[10px] text-slate-400 leading-tight">
-          Note: Grad-CAM reflects neural feature saliency in the eyewall and convective rainbands, rather than direct radar reflectivity.
+          Grad-CAM is shown only when a trained neural checkpoint is loaded; otherwise this card is labelled as a computer-vision saliency fallback.
         </p>
       </div>
     </div>

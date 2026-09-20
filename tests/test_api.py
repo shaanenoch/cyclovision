@@ -57,6 +57,9 @@ def test_predict_track():
     assert len(data["forecast"]) == 5 # +6, +12, +24, +36, +48 hr
     assert data["forecast"][0]["forecast_hour"] == 6
     assert data["forecast"][-1]["forecast_hour"] == 48
+    assert "IBTrACS" in data["model_name"]
+    assert data["forecast"][0]["model_mode"] == "trained"
+    assert data["forecast"][0]["uncertainty_km"] > 0
 
 def test_model_metrics():
     response = client.get("/api/model/metrics")
@@ -66,3 +69,6 @@ def test_model_metrics():
     assert "validation_accuracy" in metrics
     assert "confusion_matrix" in metrics
     assert "track_prediction_metrics" in metrics
+    assert metrics["track_prediction_metrics"]["test_storms"] > 0
+    assert metrics["track_prediction_metrics"]["horizons"]["48"]["mean_error_km"] > 0
+    assert metrics["classification_model_trained"] is False

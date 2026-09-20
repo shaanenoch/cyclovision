@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from typing import Dict, Any, Optional
+from pathlib import Path
 from preprocessing.image_preprocessing import load_image_to_numpy, enhance_cloud_patterns, estimate_vortex_center, resize_and_normalize
 
 class CycloneDetector:
@@ -108,5 +109,6 @@ class CycloneDetector:
             },
             "bounding_box": bbox,
             "pattern_type": pattern,
-            "convective_coverage_pct": round(convective_fraction * 100, 1)
+            "convective_coverage_pct": round(convective_fraction * 100, 1),
+            "model_mode": "trained" if self.model is not None else "computer_vision_fallback"
         }

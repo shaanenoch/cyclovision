@@ -37,7 +37,7 @@ export default function About() {
           "To develop an Artificial Intelligence (AI) / Machine Learning (ML) based system for identification, classification, and prediction of different tropical cyclone patterns using multi-source satellite data."
         </blockquote>
         <p className="text-xs text-slate-300 leading-relaxed">
-          Tropical cyclones in the North Indian Ocean (Bay of Bengal and Arabian Sea) present catastrophic hazards to coastal lives, infrastructure, and maritime navigation. CycloneAI provides an end-to-end intelligent pipeline integrating multi-sensor satellite imagery (INSAT-3D, GOES, Himawari) with deep neural networks for automated detection, Dvorak-aligned intensity classification, eyewall localization, explainability heatmaps, and forward track regression.
+          Tropical cyclones in the North Indian Ocean threaten coastal communities, infrastructure, and maritime navigation. CycloneAI combines satellite and NetCDF ingestion, cyclone-structure analysis, and a track model trained on NOAA IBTrACS. Neural classification activates only when a verified satellite checkpoint is installed; otherwise the interface reports its computer-vision fallback.
         </p>
       </div>
 
@@ -59,7 +59,7 @@ export default function About() {
           <div className="p-3.5 rounded-xl bg-navy-950 border border-navy-800">
             <span className="text-cyan-400 font-bold block mb-1">2. Vision & XAI Engine</span>
             <p className="text-slate-400 text-[11px]">
-              Lightweight MobileNetV3 backbone for vortex detection, IMD classification, and Grad-CAM saliency.
+              MobileNetV3 training and Grad-CAM pipeline for labelled satellite imagery, with explicitly labelled computer-vision fallbacks when no checkpoint is installed.
             </p>
           </div>
 

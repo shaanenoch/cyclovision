@@ -14,15 +14,24 @@
 
 ## 🛰️ Project Overview
 
-**CycloneAI** is an AI-powered command-center web application designed for meteorologists, disaster management authorities, and researchers. It integrates multi-spectral satellite imagery (INSAT-3D, GOES, Himawari, Sentinel) with deep convolutional neural networks and synoptic trajectory models to automate the cyclone monitoring lifecycle:
+**CycloneAI** is a research command-center prototype for meteorologists, disaster management authorities, and researchers. It accepts satellite imagery and NetCDF observations and combines computer vision with a trained historical-track model:
 
 1. **Vortex & Eyewall Detection:** Identifies cyclonic spiral structure and estimates center-of-circulation coordinates.
 2. **Intensity Classification:** Classifies storm intensity according to official **IMD / WMO** scales (Depression through Super Cyclone) with associated wind speed and central pressure estimates.
-3. **Explainable AI (XAI):** Generates **Grad-CAM attention heatmaps** side-by-side with original satellite observations to visually explain neural network feature importance.
-4. **48-Hour Forward Trajectory Prediction:** Predicts latitude, longitude, and intensity progression for **+6h, +12h, +24h, +36h, and +48h** forecast horizons using physical Coriolis recurvature dynamics.
+3. **Explainability:** Generates true **Grad-CAM** when a trained CNN checkpoint is loaded and clearly labelled cloud-pattern saliency otherwise.
+4. **48-Hour Forward Trajectory Prediction:** A fitted ExtraTrees model predicts latitude, longitude, wind and pressure for **+6h, +12h, +24h, +36h, and +48h** horizons.
 5. **Interactive Geospatial Dashboard:** High-tech Leaflet map interface with historical track fixes, active eye position, predicted path lines, and coordinate/place search.
 6. **Code-Free Dataset Manager:** Drag-and-drop ingestion of `.csv`, `.json`, `.nc` (NetCDF), and imagery files (`.png`, `.jpg`, `.tif`) without altering source code.
-7. **Zero-Fake Model Analytics:** Authentic validation accuracy, precision, recall, F1, confusion matrix, and geodesic track error (km) calculated on real test partitions.
+7. **Artifact-backed analytics:** Metrics are read from real training artifacts. Missing classifier metrics are shown as unavailable rather than invented.
+
+### Current model status
+
+| Component | Status | Evidence |
+|---|---|---|
+| Track and intensity forecast | Trained | NOAA IBTrACS v04r01; split by cyclone SID |
+| Satellite classifier | Training-ready | Requires labelled, cyclone-wise train/validation image folders |
+| Explainability | Conditional | Grad-CAM with trained CNN; saliency fallback otherwise |
+| NetCDF | Operational | Extracts a real 2D channel and geographic bounds; no synthetic fallback |
 
 > [!IMPORTANT]
 > **Research Prototype Disclaimer:**  
@@ -79,7 +88,7 @@ Interactive Leaflet Map             Side-by-Side Saliency Viewer
 
 ### AI / ML & Geospatial
 - **Vision Models:** PyTorch & Torchvision (MobileNetV3 / ResNet18 backbone)
-- **Trajectory Modeling:** Scikit-learn (Multi-Output Gradient Boosted Regressor)
+- **Trajectory Modeling:** Scikit-learn ExtraTrees multi-output regression trained on NOAA IBTrACS
 - **Computer Vision:** OpenCV (`cv2`) & Pillow (`PIL`)
 - **Geodesy:** Haversine formula, spherical bearing math & Geopy
 - **NetCDF:** Adaptable NetCDF-4 / xarray reader
@@ -189,11 +198,11 @@ Judges and non-technical stakeholders can easily navigate the complete demonstra
 To train or evaluate models directly via CLI:
 
 ```bash
-# 1. Train Satellite Vision Classifier
-python scripts/train_classifier.py
+# 1. Train Satellite Vision Classifier (separate cyclones between train and val)
+python scripts/train_classifier.py --data data/satellite_labeled
 
-# 2. Train Trajectory Forecaster
-python scripts/train_track_model.py
+# 2. Train Trajectory Forecaster on the NOAA North Indian Ocean IBTrACS CSV
+python scripts/train_track_model.py --data data/raw/ibtracs.NI.list.v04r01.csv
 
 # 3. Evaluate Classifier (Accuracy, Precision, Recall, Confusion Matrix)
 python scripts/evaluate_classifier.py

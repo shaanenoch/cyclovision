@@ -1,29 +1,17 @@
 {
-  "model_trained": true,
   "model_name": "IBTrACS ExtraTrees Multi-Horizon Forecaster",
   "model_version": "track-v2.0",
-  "training_date": "2026-09-20",
-  "dataset_size": 2326,
+  "trained_at": "2026-09-20T08:14:37.609115+00:00",
   "data_source": "NOAA IBTrACS v04r01 North Indian Ocean",
-  "classification_model_trained": false,
-  "classification_status": "Awaiting labelled satellite train/validation dataset",
-  "training_accuracy": null,
-  "validation_accuracy": null,
-  "precision": null,
-  "recall": null,
-  "f1_score": null,
-  "confusion_matrix": {
-    "labels": [],
-    "matrix": []
-  },
-  "training_loss_history": [],
-  "accuracy_history": [],
-  "track_prediction_metrics": {
-    "mean_geographic_error_km": 196.86,
+  "data_url": "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.NI.list.v04r01.csv",
+  "observations": 18168,
+  "storms": 471,
+  "training_samples": 8834,
+  "test_storms": 74,
+  "split_method": "GroupShuffleSplit by cyclone SID (80/20)",
+  "evaluation": {
     "test_samples": 2326,
-    "test_storms": 74,
-    "data_source": "NOAA IBTrACS v04r01 North Indian Ocean",
-    "split_method": "GroupShuffleSplit by cyclone SID (80/20)",
+    "mean_geographic_error_km": 196.86,
     "horizons": {
       "6": {
         "mean_error_km": 47.33,
@@ -65,12 +53,6 @@
         "wind_mae_kmph": 23.67,
         "pressure_mae_hpa": 8.36
       }
-    },
-    "error_6h_km": 47.33,
-    "error_12h_km": 92.86,
-    "error_24h_km": 187.18,
-    "error_36h_km": 280.93,
-    "error_48h_km": 376.01
-  },
-  "disclaimer": "Research prototype for cyclone analysis. Forecast outputs must not replace official meteorological warnings."
+    }
+  }
 }

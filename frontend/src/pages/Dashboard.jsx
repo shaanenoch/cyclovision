@@ -174,7 +174,7 @@ export default function Dashboard({ onNavigateToTab }) {
 
         <HeatmapViewer
           heatmapUrl={liveAnalysis?.heatmap_url || cyclone?.heatmap_url}
-          method="Grad-CAM Deep Attention"
+          method="Demo saliency"
         />
       </div>
 
